@@ -6,6 +6,13 @@
     "status.noted": "estado anotado para el próximo informe",
     "catalogue.offered": "índice del catálogo ofrecido (ref %#016x, versión %d) — solo visualización, nada instalado",
     "delivery.notice": "aviso de entrega en cuarentena en %s — ni descargado, ni instalado, ni ejecutado",
-    "delivery.nointerv": "; sin entrevistador configurado, así que el cuerpo no se descargó"
+    "delivery.nointerv": "; sin entrevistador configurado, así que el cuerpo no se descargó",
+    "chrome.version": "ghillie %s",
+    "chrome.usage": "ghillie — el terminal del lado del cliente. Opciones:",
+    "chrome.lang": "idioma de la interfaz: %s (paquete de %s; los rechazos siguen en inglés hasta que una persona revise el paquete)",
+    "catalogue.header": "%s (publicado %s) — %d capacidad(es)",
+    "catalogue.needs": "    necesita: %s",
+    "abilities.none": "aquí todavía no hay capacidades instaladas",
+    "abilities.removed": "%s eliminada — registrada en el libro mayor; su pestaña se cierra la próxima vez que una pantalla lo consulte"
   }
 }

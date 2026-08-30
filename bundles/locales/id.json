@@ -6,6 +6,13 @@
     "status.noted": "status dicatat untuk laporan berikutnya",
     "catalogue.offered": "indeks katalog ditawarkan (ref %#016x, versi %d) — hanya tampilan, tidak ada yang dipasang",
     "delivery.notice": "pemberitahuan pengiriman dikarantina di %s — tidak diambil, tidak dipasang, tidak dijalankan",
-    "delivery.nointerv": "; tidak ada pewawancara yang dikonfigurasi, jadi isinya tidak diambil"
+    "delivery.nointerv": "; tidak ada pewawancara yang dikonfigurasi, jadi isinya tidak diambil",
+    "chrome.version": "ghillie %s",
+    "chrome.usage": "ghillie — terminal sisi pelanggan. Opsi:",
+    "chrome.lang": "bahasa antarmuka: %s (paket dari %s; penolakan tetap dalam bahasa Inggris sampai paket ditinjau oleh manusia)",
+    "catalogue.header": "%s (diterbitkan %s) — %d kemampuan",
+    "catalogue.needs": "    membutuhkan: %s",
+    "abilities.none": "belum ada kemampuan yang dipasang di sini",
+    "abilities.removed": "%s dihapus — dicatat dalam buku besar; tabnya tertutup saat tampilan berikutnya memeriksa"
   }
 }

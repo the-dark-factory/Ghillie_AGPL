@@ -6,6 +6,13 @@
     "status.noted": "statut noté pour le prochain rapport",
     "catalogue.offered": "index du catalogue proposé (réf %#016x, version %d) — affichage seul, rien d'installé",
     "delivery.notice": "avis de livraison en quarantaine à %s — ni récupéré, ni installé, ni exécuté",
-    "delivery.nointerv": " ; aucun intervieweur configuré, le corps n'a donc pas été récupéré"
+    "delivery.nointerv": " ; aucun intervieweur configuré, le corps n'a donc pas été récupéré",
+    "chrome.version": "ghillie %s",
+    "chrome.usage": "ghillie — le terminal côté client. Options :",
+    "chrome.lang": "langue de l'interface : %s (pack depuis %s ; les refus restent en anglais tant qu'un humain n'a pas relu le pack)",
+    "catalogue.header": "%s (publié %s) — %d capacité(s)",
+    "catalogue.needs": "    requiert : %s",
+    "abilities.none": "aucune capacité installée ici pour l'instant",
+    "abilities.removed": "%s supprimée — inscrit au registre ; son onglet se ferme au prochain affichage"
   }
 }

@@ -75,6 +75,7 @@ import (
 	"github.com/tonygair/ghillie/internal/identity"
 	"github.com/tonygair/ghillie/internal/interview"
 	"github.com/tonygair/ghillie/internal/keys"
+	"github.com/tonygair/ghillie/internal/locale"
 	"github.com/tonygair/ghillie/internal/terminal"
 	"github.com/tonygair/ghillie/internal/voice"
 )
@@ -204,6 +205,7 @@ func main() {
 	flag.StringVar(&o.glassAddr, "glass-addr", "127.0.0.1:8788", "loopback address the chat page attaches to (ws://<addr>/ws)")
 	flag.StringVar(&o.glassOrigin, "glass-origin", "", "host:port of ONE browser origin additionally allowed to open the glass socket (e.g. localhost:5173 for a dev page). Empty = same-host only — the ClawJacked defence: without this, no other page in the browser can drive the glass")
 	flag.BoolVar(&o.earsAdoptExternal, "ears-adopt-external", false, "USE a whisper-server this process did not start. OFF by default: whatever holds that port is handed every word you speak, and it is not known to be whisper. Turn this on only when you know what is listening there. The URL must be loopback either way — your voice does not leave this machine.")
+	installUsage()
 	flag.Parse()
 	flag.Visit(func(f *flag.Flag) {
 		switch f.Name {
@@ -215,7 +217,7 @@ func main() {
 	})
 
 	if *showVersion {
-		fmt.Printf("ghillie %s\n", version)
+		fmt.Println(versionLine(version))
 		return
 	}
 
@@ -1137,7 +1139,7 @@ func runCatalogue(o options) error {
 			return err
 		}
 		if len(list) == 0 {
-			log.Printf("no abilities installed here yet")
+			log.Printf("%s", locale.T("abilities.none"))
 			return nil
 		}
 		for _, e := range list {
@@ -1159,7 +1161,7 @@ func runCatalogue(o options) error {
 		if err := bundle.Uninstall(o.removeAbility, abilities); err != nil {
 			return err
 		}
-		log.Printf("removed %s — recorded in the ledger; its tab closes when a display next looks", o.removeAbility)
+		log.Printf("%s", fmt.Sprintf(locale.T("abilities.removed"), o.removeAbility))
 		return nil
 	}
 
@@ -1174,7 +1176,15 @@ func runCatalogue(o options) error {
 	}
 
 	if o.listCatalogue {
-		log.Printf("%s (published %s) — %d ability(ies)", idx.Catalogue, idx.Published, len(idx.Abilities))
+		// ★ The listing HEADER and the needs label are chrome and render from
+		// the pack; the ability names, proof states and costs are DATA from the
+		// catalogue and are printed exactly as published — a proof state
+		// translated locally is a proof state nobody can check against the
+		// index it came from.
+		if l := langLine(); l != "" {
+			log.Printf("%s", l)
+		}
+		log.Printf("%s", fmt.Sprintf(locale.T("catalogue.header"), idx.Catalogue, idx.Published, len(idx.Abilities)))
 		installed := map[string]bool{}
 		if list, _ := bundle.Installed(abilities); list != nil {
 			for _, e := range list {
@@ -1188,7 +1198,7 @@ func runCatalogue(o options) error {
 			}
 			log.Printf("%s %-16s %-9s %-6s %s", mark, e.Name, e.Proof, e.Cost, e.Summary)
 			if e.Needs != "" {
-				log.Printf("    needs: %s", e.Needs)
+				log.Printf("%s", fmt.Sprintf(locale.T("catalogue.needs"), e.Needs))
 			}
 		}
 		return nil

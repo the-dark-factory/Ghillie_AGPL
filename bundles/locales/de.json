@@ -6,6 +6,13 @@
     "status.noted": "Status für den nächsten Bericht vermerkt",
     "catalogue.offered": "Katalogindex angeboten (Ref %#016x, Version %d) — nur Anzeige, nichts installiert",
     "delivery.notice": "Lieferhinweis unter Quarantäne bei %s — nicht geholt, nicht installiert, nicht ausgeführt",
-    "delivery.nointerv": "; kein Interviewer konfiguriert, der Inhalt wurde daher nicht geholt"
+    "delivery.nointerv": "; kein Interviewer konfiguriert, der Inhalt wurde daher nicht geholt",
+    "chrome.version": "ghillie %s",
+    "chrome.usage": "ghillie — das kundenseitige Terminal. Optionen:",
+    "chrome.lang": "Oberflächensprache: %s (Paket aus %s; Ablehnungen bleiben Englisch, bis ein Mensch das Paket geprüft hat)",
+    "catalogue.header": "%s (veröffentlicht %s) — %d Fähigkeit(en)",
+    "catalogue.needs": "    benötigt: %s",
+    "abilities.none": "hier sind noch keine Fähigkeiten installiert",
+    "abilities.removed": "%s entfernt — im Hauptbuch vermerkt; sein Eintrag verschwindet, wenn eine Anzeige das nächste Mal nachsieht"
   }
 }
