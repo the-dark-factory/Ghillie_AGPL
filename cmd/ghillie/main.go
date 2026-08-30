@@ -130,6 +130,11 @@ type options struct {
 	earsWhisperURL    string
 	earsAdoptExternal bool
 
+	talk              bool
+	mindURL           string
+	mindModel         string
+	mindAdoptExternal bool
+
 	glass       bool
 	glassAddr   string
 	glassOrigin string
@@ -205,6 +210,10 @@ func main() {
 	flag.StringVar(&o.glassAddr, "glass-addr", "127.0.0.1:8788", "loopback address the chat page attaches to (ws://<addr>/ws)")
 	flag.StringVar(&o.glassOrigin, "glass-origin", "", "host:port of ONE browser origin additionally allowed to open the glass socket (e.g. localhost:5173 for a dev page). Empty = same-host only — the ClawJacked defence: without this, no other page in the browser can drive the glass")
 	flag.BoolVar(&o.earsAdoptExternal, "ears-adopt-external", false, "USE a whisper-server this process did not start. OFF by default: whatever holds that port is handed every word you speak, and it is not known to be whisper. Turn this on only when you know what is listening there. The URL must be loopback either way — your voice does not leave this machine.")
+	flag.BoolVar(&o.talk, "talk", false, "free conversation with ghillie, using YOUR mind (see -mind-url) — a standalone verb: it talks, then exits. He decides nothing here: proofs, refusals, admissions and the conduct wall stay deterministic and never see the model. With no mind set he says so plainly and does nothing else")
+	flag.StringVar(&o.mindURL, "mind-url", defaultMindURL(), "THE MIND IS YOURS: the inference endpoint on YOUR machine, e.g. the ollama you installed (default: $GHILLIE_MIND_URL, else http://127.0.0.1:11434). LOOPBACK-ONLY unless -mind-adopt-external. A downloaded ghillie never draws anyone else's inference; when nothing answers here he says so and everything else still works")
+	flag.StringVar(&o.mindModel, "mind-model", defaultMindModel(), "which model answers (default: $GHILLIE_MIND_MODEL, else EMPTY — ask the server what it serves, take the first, and say out loud which one that was)")
+	flag.BoolVar(&o.mindAdoptExternal, "mind-adopt-external", false, "SEND YOUR SITTING OFF THIS MACHINE. OFF by default, and think harder about this one than about -ears-adopt-external: the ears hear one answer, the MIND IS TOLD EVERYTHING — every question, every answer, the whole conversation, for as long as it lasts, in plain text to whatever holds that address. Turn this on only for a machine that is yours and that you would be content to have read the lot.")
 	installUsage()
 	flag.Parse()
 	flag.Visit(func(f *flag.Flag) {
@@ -252,6 +261,15 @@ func run(o options) error {
 	// installing and removing are the OWNER'S acts and are both recorded.
 	if o.listCatalogue || o.getAbility != "" || o.listAbilities || o.removeAbility != "" {
 		return runCatalogue(o)
+	}
+
+	// ★ THE MIND IS THE OWNER'S, AND SO IS THE VERB. -talk is standalone like
+	// the catalogue verbs: it opens the endpoint the owner named at their own
+	// machine, converses, and exits. It runs BEFORE the facade is required
+	// because a downloaded ghillie with a mind and no facade is a complete
+	// product — the ruling's whole point (Tony 2026-08-28).
+	if o.talk {
+		return runTalk(context.Background(), o, os.Stdin, os.Stdout)
 	}
 
 	// ★ FILL RULES ARE OWNER ACTS — standalone verbs like enrolment and

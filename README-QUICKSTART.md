@@ -160,7 +160,7 @@ GHILLIE_LANG=de ./ghillie -h | head -3
 ```
 
 ```
-ghillie v0.1.3
+ghillie v0.1.4
 Oberflächensprache: de (Paket aus …/locales/de.json; Ablehnungen bleiben
 Englisch, bis ein Mensch das Paket geprüft hat)
 ghillie — das kundenseitige Terminal. Optionen:
@@ -182,6 +182,56 @@ that pack's refusals go live on your machine.
 To keep your own corrected copy across upgrades, put it in the ghillie home —
 `~/.ghillie/locales/<lang>.json` — which is searched first and always wins over
 what the tarball shipped.
+
+## 6. Give him a mind
+
+**He works without one.** Everything above — the catalogue, installing an
+ability, the proofs, the whole facade loop, the interview — needs no model at
+all and is untouched by this section. What a mind adds is one thing: free
+conversation, in `-talk`.
+
+**The mind is yours.** This ghillie never draws inference from us or from
+anybody else. There is no key to paste and no account to make. You run a model
+on your own machine and point him at it:
+
+```sh
+brew install ollama && ollama serve      # or: curl -fsSL https://ollama.com/install.sh | sh
+ollama pull llama3.2
+./ghillie -talk
+```
+
+That is the whole setup: `-mind-url` already defaults to `http://127.0.0.1:11434`,
+which is where ollama listens, and `-mind-model` defaults to empty — meaning
+*ask that server what it serves, take the first, and say out loud which one it
+was*. The first line he prints names the model, the URL and the API detected,
+so you are never guessing whose words you are reading:
+
+```
+ghillie │ mind: llama3.2:latest at http://127.0.0.1:11434, speaking ollama /api/chat
+```
+
+Already running something else? `vLLM`, `llamafile`, `LM Studio` and
+`llama.cpp`'s server all speak the OpenAI-compatible `/v1/chat/completions`, and
+he probes for it on the same URL when ollama's own API is not there. Point
+`-mind-url` at it and he will say which wire he found. `GHILLIE_MIND_URL` and
+`GHILLIE_MIND_MODEL` set the same two things from the environment.
+
+**With no mind, he says so — he does not pretend.** Run `-talk` with nothing
+listening and you get this, and nothing else happens:
+
+```
+ghillie │ no mind is set on this machine — point -mind-url at your own model (looked at http://127.0.0.1:11434).
+```
+
+**The URL must be on this machine.** A non-loopback `-mind-url` is refused
+outright, because a mind is shown *everything* you tell him — every question,
+every answer, the whole sitting. `-mind-adopt-external` is the eyes-open opt-in
+for a remote machine that is genuinely yours; think harder about it than about
+`-ears-adopt-external`, which only ever hears one answer.
+
+**The mind decides nothing.** Proofs, refusals, admission decisions and his
+conduct in an interview are settled by the proven cores and never see the model
+— a build in which they could is a build that fails its own tests.
 
 ## Where his state lives
 
