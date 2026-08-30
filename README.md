@@ -10,16 +10,15 @@ whether there is anything for it, **refuses anything it has not agreed to**, and
                                                      │
                                      outward GET ────┴──► conduct ──► sign ──► submit
 
-Built from the factory's internal facade-protocol design (§2–§6) and the v1
+Built from `~/ObVault/designs/DRAFT_ghillie_facade_protocol.md` §2–§6 and the v1
 interview-loop plan. Nothing in this repository redesigns any part of it.
-*(Those design documents are internal and are not part of this repository.)*
 
 ---
 
 ## The three rules v1 is built on
 
-**1. Ghillie judges nothing.** It is an interviewing agent working through the
-questions a brief supplies. It may **recall, present and ask**. The factory alone
+**1. Ghillie judges nothing.** It is an interviewing agent fulfilling a brief
+the factory gave it. It may **recall, present and ask**. The factory alone
 **judges, scores and decides what is missing**. Ghillie does not know whether a
 spec is complete and **cannot tell the client it is ready** — asked directly, it
 says so plainly and truthfully.
@@ -63,7 +62,7 @@ protocol; the wire is packaging.
 
 This section is the honest one. Read it before quoting anything from this repo.
 
-### PROVEN — Ada/SPARK cores forged, admitted and captured in the factory's internal Ada estate (not part of this repository)
+### PROVEN — Ada/SPARK cores in `~/dev/ada-factory`, forged, admitted, captured
 
 | Ledger | Core | What it decides |
 |---|---|---|
@@ -128,8 +127,8 @@ is closed, and "what is stubbed" for how it stops being a gap.
   bytes inside it.
 - **`cmd/ghillie`** — flags and wiring.
 
-The pattern is `provenLaneGate` at the bottom of the factory's internal
-`specifier` wiring (not in this repository): *"There is no logic here by
+The pattern is `provenLaneGate` at the bottom of
+`ada-factory/cmd/specifier/forge_wiring.go`: *"There is no logic here by
 design."* Every verdict the terminal appears to reach is a call into
 `internal/gate`.
 
@@ -142,8 +141,8 @@ design."* Every verdict the terminal appears to reach is a call into
   happily issue instructions it knows will bounce *and smuggle conduct into a
   brief on request*. Those last parts are its purpose: it plays the compromised
   facade so the gate and the conduct wall can be watched saying no. The real
-  facade endpoints belong in the factory's internal `specifier`, and building
-  them is a **separately gated step this repository does not take**.
+  facade endpoints belong in `ada-factory/cmd/specifier`, and building them is a
+  **separately gated step this repository does not take**.
 
   v1 did close one honesty gap in it: the double now runs the **enrol/attest
   ceremony and requires an attested session**, because v0's mock had no auth at
@@ -289,6 +288,20 @@ sales line — and it never quotes a price, because pricing is not its to do.
 
 ---
 
+## Where state lives
+
+Everything durable this terminal owns — the state file, the device key that **is**
+this claw's identity, the encryption key, the pinned facade key, the installed
+abilities, the quarantine — lives under one **ghillie home**: `$GHILLIE_HOME`, or
+`~/.ghillie` when that is unset. `-state` names another place per run and wins
+over both; the other paths follow the directory it names.
+
+Before v0.1.2 the default was the **current working directory**, which meant
+running ghillie from a second directory found no device key, generated a fresh
+one, and left the machine holding two claws with every earlier enrolment silently
+orphaned. State already sitting in a working directory is now used *where it
+sits*, with a line saying so, rather than being shadowed by a new identity.
+
 ## Build and run
 
 ```zsh
@@ -333,59 +346,7 @@ whole run for the purchaser reference.
 Replace `-brief items` with `conduct-wait`, `conduct-interrupt` or
 `conduct-disclose` to watch the wall fire on each field.
 
-### ★ Abilities — browse the catalogue, install, re-derive the proof
-
-An **ability** is an extension bundle. Installing one is an **owner act**: each
-of these flags does its work at your keyboard and then exits — none of it can be
-driven over the wire, and none of it happens during a poll.
-
-```zsh
-make build
-
-# 1. See what a catalogue offers — name, what it needs, its HONEST proof
-#    status, and cost. Installs nothing.
-./bin/ghillie -catalogue https://thereef.ink/catalogue -abilities-available
-
-# 2. Install one by name. The archive's digest is checked against the index,
-#    the five-part contract is verified, and the ledger records the install.
-./bin/ghillie -catalogue https://thereef.ink/catalogue \
-              -get-ability brief-fill-policy
-
-# 3. RUNG B — re-derive the proof yourself instead of taking it on trust.
-./bin/ghillie -catalogue https://thereef.ink/catalogue \
-              -get-ability brief-fill-policy -reprove
-
-# 4. What is installed here, with provenance from the ledger.
-./bin/ghillie -abilities
-```
-
-`-catalogue` takes **either** an `https` base **or** a local directory holding
-an `index.json`. With the flag omitted it defaults to a local catalogue
-directory under your home.
-
-**What `-reprove` changes.** Without it, a bundle that ships a proof installs on
-**Rung A**, and the ledger says plainly: *proofs carried, not re-derived here*.
-With it, ghillie runs **Rung B** — it re-derives the proof from the shipped
-source using **your** prover (zero unproved, or no install), builds the front
-with **your** toolchain, and checks it against the shipped truth table. Rung B
-needs a working SPARK/GNAT toolchain on your machine. Asking for `-reprove` on a
-bundle that ships no proof project is an **error, not a silent downgrade**.
-
-Proof status is stated honestly per ability in the index — at the time of
-writing the reef catalogue lists both `prototype` and `re-provable` bundles, and
-only the latter can be taken to Rung B.
-
-To remove one: `./bin/ghillie -remove-ability <name>` (also an owner act, and
-also how an upgrade is done — visibly). A bundle you already downloaded can be
-installed from disk with `-install-ability <path>`, which honours `-reprove` the
-same way.
-
 ### ★ Sit the interview — the real door, out loud
-
-> **INTERNAL ONLY.** This script builds against working trees that are **not
-> part of this repository** (the factory's Ada estate and the voice pipeline)
-> and writes into internal directories. It will not run from a clean public
-> clone. It is documented here for completeness, not as a step you can follow.
 
 ```zsh
 ./scripts/realdoor.sh          # one command; ghillie asks ALOUD, you type answers
@@ -394,19 +355,19 @@ same way.
 ```
 
 No mockfacade anywhere in this one. The script builds the **real specifier**
-from the factory's internal Ada working tree (read-only — nothing there is touched),
+from `~/dev/ada-factory`'s working tree (read-only — nothing there is touched),
 generates a fresh 32-byte facade signing seed, enrols a fresh ghillie with a
 real generated device key and a trust-on-first-use pin, operator-enqueues one
 `deliver_artifact` naming a 3-item brief, and then the chair is yours: ghillie
 polls, verifies the signed frame, fetches the brief, and asks you what you want
-built — **spoken through the settled breath pipeline** (an internal checkout; the
+built — **spoken through the settled breath pipeline** (`~/dev/respire`; the
 first render takes a few seconds, honestly unclaimed). You type; `/cut` cuts a
 question off mid-ask. If the voice pipeline is missing the script **refuses to
 run** rather than silently downgrading — `--text` is the fallback, and you have
 to say it.
 
-Everything lands under an internal `ghillie-voice/demo-runs/<timestamp>/`
-directory (never `/tmp`): the signed submission and outcome reports **server-side**
+Everything lands under `~/ObVault/ghillie-voice/demo-runs/<timestamp>/` (never
+`/tmp`): the signed submission and outcome reports **server-side**
 (`server/submissions/*.jsonl`), the claw registry with the durable Seq, the
 quarantined delivery notice, the voice renders with their plan sidecars, and
 `provenance.txt` recording both build trees. The run ends with the same PII
@@ -511,13 +472,10 @@ specifier shutdown.
 
 ## Constraints honoured
 
-*(Internal development notes, kept for the record. The trees named here are the
-factory's own and are not part of this repository.)*
-
-The factory's Ada estate was read only — v1 read four more `.ads` files
+`~/dev/ada-factory` was read only — v1 read four more `.ads` files
 (`claw_enrolment_pkg`, `user_access_pkg`, `turn_state_pkg`, `question_ledger_pkg`)
 and transliterated them here. The golden vectors were generated by copying
 `facade_instruction_codec_pkg.ads` **out** to a scratch directory, hash-checking
 it against the ledger record, and building there. Nothing was built inside,
 modified in, or committed to the factory tree. No facade endpoint was added to
-`specifier`.
+`specifier`. This repository has no git remote and nothing has been pushed.

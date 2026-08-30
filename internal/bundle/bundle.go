@@ -35,6 +35,8 @@ import (
 	"os"
 	"path/filepath"
 	"sort"
+
+	"filippo.io/age"
 	"strings"
 	"time"
 )
@@ -174,7 +176,61 @@ func Unpack(archivePath, destDir string) (bundleDir string, err error) {
 		return "", fmt.Errorf("bundle: %w", err)
 	}
 	defer f.Close()
-	gz, err := gzip.NewReader(f)
+	return unpackStream(f, archivePath, destDir)
+}
+
+// UnpackEncrypted opens a confidential delivery: the same archive format,
+// sealed to this claw's encryption identity. The decryption is a STREAM —
+// the plaintext archive never exists as a file; only the unpacked source
+// tree does, and Dispose scrubs that after the install settles.
+func UnpackEncrypted(archivePath, destDir string, id *age.X25519Identity) (bundleDir string, err error) {
+	f, err := os.Open(archivePath)
+	if err != nil {
+		return "", fmt.Errorf("bundle: %w", err)
+	}
+	defer f.Close()
+	plain, err := age.Decrypt(f, id)
+	if err != nil {
+		return "", fmt.Errorf("bundle: %s does not open with this claw's encryption key — a confidential delivery is sealed to ONE device: %w", archivePath, err)
+	}
+	return unpackStream(plain, archivePath, destDir)
+}
+
+// Dispose scrubs an unpacked confidential source tree: every regular file is
+// overwritten with zeros before the tree is removed. Best-effort by nature —
+// journaling and SSD wear-levelling can retain sectors — which is why the
+// honest security boundary calls this deterrence, never erasure.
+func Dispose(dir string) error {
+	walkErr := filepath.Walk(dir, func(p string, fi os.FileInfo, err error) error {
+		if err != nil || !fi.Mode().IsRegular() {
+			return err
+		}
+		w, oerr := os.OpenFile(p, os.O_WRONLY, 0)
+		if oerr != nil {
+			return oerr
+		}
+		defer w.Close()
+		_, werr := io.CopyN(w, zeroReader{}, fi.Size())
+		return werr
+	})
+	if rmErr := os.RemoveAll(dir); rmErr != nil {
+		return rmErr
+	}
+	return walkErr
+}
+
+// zeroReader yields zeros forever; Dispose's overwrite source.
+type zeroReader struct{}
+
+func (zeroReader) Read(p []byte) (int, error) {
+	for i := range p {
+		p[i] = 0
+	}
+	return len(p), nil
+}
+
+func unpackStream(r io.Reader, archivePath, destDir string) (bundleDir string, err error) {
+	gz, err := gzip.NewReader(r)
 	if err != nil {
 		return "", fmt.Errorf("bundle: %s is not a gzip archive: %w", archivePath, err)
 	}

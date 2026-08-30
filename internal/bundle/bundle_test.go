@@ -5,6 +5,7 @@ import (
 	"compress/gzip"
 	"crypto/sha256"
 	"encoding/hex"
+	"filippo.io/age"
 	"os"
 	"path/filepath"
 	"strings"
@@ -180,4 +181,104 @@ func TestClaimsProof(t *testing.T) {
 	if !ClaimsProof(dir) {
 		t.Fatal("proof.gpr present but no claim seen")
 	}
+}
+
+// TestEncryptedDelivery pins the confidential tier's bundle mechanics:
+// a sealed archive opens only with the right identity, streams through the
+// same unpack (so every path/size/mode guard applies), and Dispose leaves
+// no readable source behind.
+func TestEncryptedDelivery(t *testing.T) {
+	root := t.TempDir()
+	dir := scaffold(t, root, "secret-ability")
+	plainArchive := filepath.Join(root, "secret.tar.gz")
+
+	f, _ := os.Create(plainArchive)
+	gz := gzip.NewWriter(f)
+	tw := tar.NewWriter(gz)
+	_ = filepath.Walk(dir, func(path string, info os.FileInfo, err error) error {
+		if err != nil {
+			return err
+		}
+		rel, _ := filepath.Rel(root, path)
+		if info.IsDir() {
+			return tw.WriteHeader(&tar.Header{Name: rel + "/", Mode: 0o755, Typeflag: tar.TypeDir})
+		}
+		raw, _ := os.ReadFile(path)
+		_ = tw.WriteHeader(&tar.Header{Name: rel, Mode: int64(info.Mode().Perm()), Size: int64(len(raw)), Typeflag: tar.TypeReg})
+		_, e := tw.Write(raw)
+		return e
+	})
+	tw.Close()
+	gz.Close()
+	f.Close()
+
+	id, err := age.GenerateX25519Identity()
+	if err != nil {
+		t.Fatal(err)
+	}
+	otherID, err := age.GenerateX25519Identity()
+	if err != nil {
+		t.Fatal(err)
+	}
+	raw, err := os.ReadFile(plainArchive)
+	if err != nil {
+		t.Fatal(err)
+	}
+	sealed := filepath.Join(root, "secret.tar.gz.age")
+	sf, err := os.Create(sealed)
+	if err != nil {
+		t.Fatal(err)
+	}
+	w, err := age.Encrypt(sf, id.Recipient())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := w.Write(raw); err != nil {
+		t.Fatal(err)
+	}
+	if err := w.Close(); err != nil {
+		t.Fatal(err)
+	}
+	sf.Close()
+
+	t.Run("right key opens and verifies", func(t *testing.T) {
+		got, err := UnpackEncrypted(sealed, filepath.Join(root, "unpacked"), id)
+		if err != nil {
+			t.Fatalf("UnpackEncrypted: %v", err)
+		}
+		if _, err := Verify(got); err != nil {
+			t.Fatalf("sealed round-trip does not verify: %v", err)
+		}
+	})
+	t.Run("wrong key refuses whole", func(t *testing.T) {
+		if _, err := UnpackEncrypted(sealed, filepath.Join(root, "unpacked-wrong"), otherID); err == nil {
+			t.Fatal("a delivery sealed to another claw opened")
+		}
+	})
+	t.Run("tampered ciphertext refuses before the prover", func(t *testing.T) {
+		bad, err := os.ReadFile(sealed)
+		if err != nil {
+			t.Fatal(err)
+		}
+		bad[len(bad)-1] ^= 0x01
+		tampered := filepath.Join(root, "tampered.age")
+		if err := os.WriteFile(tampered, bad, 0o600); err != nil {
+			t.Fatal(err)
+		}
+		if _, err := UnpackEncrypted(tampered, filepath.Join(root, "unpacked-tampered"), id); err == nil {
+			t.Fatal("tampered ciphertext opened")
+		}
+	})
+	t.Run("dispose leaves no source behind", func(t *testing.T) {
+		staging := filepath.Join(root, "staging")
+		if _, err := UnpackEncrypted(sealed, staging, id); err != nil {
+			t.Fatal(err)
+		}
+		if err := Dispose(staging); err != nil {
+			t.Fatalf("Dispose: %v", err)
+		}
+		if _, err := os.Stat(staging); !os.IsNotExist(err) {
+			t.Errorf("staging survives disposal: %v", err)
+		}
+	})
 }

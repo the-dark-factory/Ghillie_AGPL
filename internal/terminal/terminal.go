@@ -33,6 +33,7 @@ import (
 	"github.com/tonygair/ghillie/internal/frame"
 	"github.com/tonygair/ghillie/internal/gate"
 	"github.com/tonygair/ghillie/internal/identity"
+	"github.com/tonygair/ghillie/internal/locale"
 	"github.com/tonygair/ghillie/internal/notes"
 	"github.com/tonygair/ghillie/internal/protocol"
 )
@@ -503,11 +504,11 @@ func (t *Terminal) handle(ctx context.Context, env protocol.Envelope) {
 func (t *Terminal) explain(c gate.Command, consent gate.Consent, reason gate.Reason) string {
 	switch reason {
 	case gate.ReasonLocalOnly:
-		return fmt.Sprintf("%s is local-only by construction — refused at EVERY ceiling and EVERY consent level (ledger 112, NO-REMOTE-REACH-FOR-LOCAL-WORK)", c)
+		return fmt.Sprintf(locale.TRefusal("refuse.local-only"), c)
 	case gate.ReasonOverCeiling:
-		return fmt.Sprintf("rank %d is above this machine's ceiling of %s (rank %d)", gate.CommandRank(c), t.cfg.Ceiling, gate.CommandRank(t.cfg.Ceiling))
+		return fmt.Sprintf(locale.TRefusal("refuse.over-ceiling"), gate.CommandRank(c), t.cfg.Ceiling, gate.CommandRank(t.cfg.Ceiling))
 	case gate.ReasonNoConsent:
-		return fmt.Sprintf("%s needs Fresh_Explicit consent from a human at this machine; consent here is %s", c, consent)
+		return fmt.Sprintf(locale.TRefusal("refuse.no-consent"), c, consent)
 	default:
 		return string(reason)
 	}
@@ -519,11 +520,11 @@ func (t *Terminal) act(ctx context.Context, c gate.Command, instr frame.Instruct
 	switch c {
 	case gate.ReportStatus:
 		// The status body itself goes out on the next poll's report.
-		return "status noted for the next report", nil
+		return locale.T("status.noted"), nil
 
 	case gate.OfferCatalogue:
 		// Display-only. It installs nothing and fetches nothing.
-		return fmt.Sprintf("catalogue index offered (ref %#016x, version %d) — display only, nothing installed", instr.ArtifactRef, instr.Version), nil
+		return fmt.Sprintf(locale.T("catalogue.offered"), instr.ArtifactRef, instr.Version), nil
 
 	case gate.DeliverArtifact:
 		// A delivery NOTIFICATION. The artifact itself is fetched by a separate
@@ -533,10 +534,10 @@ func (t *Terminal) act(ctx context.Context, c gate.Command, instr frame.Instruct
 		if err != nil {
 			return "", fmt.Errorf("quarantine: %w", err)
 		}
-		notice := fmt.Sprintf("delivery notice quarantined at %s — not fetched, not installed, not executed", path)
+		notice := fmt.Sprintf(locale.T("delivery.notice"), path)
 
 		if t.cfg.Interview == nil {
-			return notice + "; no interviewer configured, so the body was not fetched", nil
+			return notice + locale.T("delivery.nointerv"), nil
 		}
 		conducted, err := t.deliverBrief(ctx, instr)
 		if err != nil {

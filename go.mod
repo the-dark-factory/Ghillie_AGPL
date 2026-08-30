@@ -3,6 +3,7 @@ module github.com/tonygair/ghillie
 go 1.26.1
 
 require (
+	filippo.io/age v1.3.1
 	github.com/coder/websocket v1.8.15
 	github.com/mdp/qrterminal/v3 v3.2.1
 	go.mau.fi/whatsmeow v0.0.0-20260821141805-33cfac511629
@@ -11,6 +12,7 @@ require (
 
 require (
 	filippo.io/edwards25519 v1.2.0 // indirect
+	filippo.io/hpke v0.4.0 // indirect
 	github.com/beeper/argo-go v1.1.2 // indirect
 	github.com/dustin/go-humanize v1.0.1 // indirect
 	github.com/elliotchance/orderedmap/v3 v3.1.0 // indirect

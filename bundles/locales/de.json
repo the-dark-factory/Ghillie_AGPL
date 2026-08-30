@@ -1,0 +1,11 @@
+{
+  "lang": "de",
+  "reviewed": false,
+  "_note": "Machine-drafted pack awaiting native review. Chrome strings render in this language now; REFUSALS remain English until reviewed:true is set BY A HUMAN REVIEWER — a refusal is never rephrased, and an unreviewed translation is a rephrasing. Correct any string, then set reviewed:true.",
+  "strings": {
+    "status.noted": "Status für den nächsten Bericht vermerkt",
+    "catalogue.offered": "Katalogindex angeboten (Ref %#016x, Version %d) — nur Anzeige, nichts installiert",
+    "delivery.notice": "Lieferhinweis unter Quarantäne bei %s — nicht geholt, nicht installiert, nicht ausgeführt",
+    "delivery.nointerv": "; kein Interviewer konfiguriert, der Inhalt wurde daher nicht geholt"
+  }
+}

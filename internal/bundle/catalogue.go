@@ -48,7 +48,11 @@ type Entry struct {
 	Cost    string `json:"cost"`    // what it costs, as a single figure or "free"
 	Archive string `json:"archive"` // path or URL, relative to the index's base
 	Digest  string `json:"digest"`  // sha256 of the archive bytes, hex
-	Bytes   int64  `json:"bytes"`
+	// Delivery marks how the archive travels: "" (plain tar.gz) or
+	// "encrypted" (the same tar.gz sealed to THIS claw's published
+	// encryption key — the confidential tier; opens nowhere else).
+	Delivery string `json:"delivery,omitempty"`
+	Bytes    int64  `json:"bytes"`
 }
 
 // Index is a catalogue document.

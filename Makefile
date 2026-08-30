@@ -6,6 +6,8 @@
 # make fmt     gofmt -l (fails if anything is unformatted)
 # make check   fmt + vet + test
 # make demo    run mockfacade + ghillie end to end (see scripts/demo.sh)
+# make dist     build the release matrix into ./dist, version stamped in
+# make dist-tar dist, then the five tarballs + SHA256SUMS-assets.txt
 # make cores   run ONLY the proven-core mirror tests, with their counts shown
 # make opsec   run the OPSEC gate over every client-visible string
 # make golden  print how to regenerate the golden vectors from the proven core
@@ -39,7 +41,14 @@ export CC
 export CXX
 endif
 
-.PHONY: all build test vet fmt check demo cores opsec golden clean dist
+.PHONY: all build test vet fmt check demo cores opsec golden clean dist dist-tar
+
+# THE VERSION IS STAMPED INTO THE BINARY, not written on the tin. Every command
+# takes -version, and what it prints is this string, injected at link time. The
+# default is whatever git says this tree is, so a binary built from a dirty
+# working copy says "-dirty" rather than claiming a tag it does not have; the
+# release path passes VERSION=vX.Y.Z explicitly.
+VERSION ?= $(shell git describe --tags --always --dirty 2>/dev/null || echo dev)
 
 # The release matrix: Windows, Mac and Linux, both common architectures where
 # they exist. Pure Go, CGO off — the retirement of cmd/ghillie-gui removed the
@@ -53,20 +62,48 @@ endif
 # and ears are macOS-only by build tag and refuse honestly elsewhere.
 DIST      := dist
 PLATFORMS := darwin/arm64 darwin/amd64 linux/amd64 linux/arm64 windows/amd64
-DISTBINS  := ghillie ghillie-post ghillie-wa
+
+# mockfacade ships DELIBERATELY. It is a test double and says so in its own
+# banner, but a stranger with three bare binaries and no facade to point them at
+# has nothing to run; with it they have a working local demo in three lines, and
+# the quickstart is the place that says which is which.
+DISTBINS  := ghillie ghillie-post ghillie-wa mockfacade
+
+# AGPL COMPLIANCE IS NOT OPTIONAL FURNITURE: LICENSE travels with the binaries,
+# in the same tarball, because that is what the licence a stranger receives the
+# program under actually requires. The quickstart is beside it for the same
+# reason the licence is — a tarball nobody can start is a tarball nobody reads.
+DISTDOCS  := LICENSE NOTICE README-QUICKSTART.md
 
 dist:
 	@mkdir -p $(DIST)
 	@set -e; for p in $(PLATFORMS); do \
-	  os=$${p%/*}; arch=$${p#*/}; out=$(DIST)/$$os-$$arch; mkdir -p $$out; \
+	  os=$${p%/*}; arch=$${p#*/}; out=$(DIST)/$$os-$$arch; rm -rf $$out; mkdir -p $$out; \
 	  ext=""; [ "$$os" = "windows" ] && ext=".exe"; \
 	  for b in $(DISTBINS); do \
 	    echo "  $$os/$$arch  $$b$$ext"; \
-	    CGO_ENABLED=0 GOOS=$$os GOARCH=$$arch $(GO) build -trimpath -ldflags "-s -w" \
+	    CGO_ENABLED=0 GOOS=$$os GOARCH=$$arch $(GO) build -trimpath \
+	      -ldflags "-s -w -X main.version=$(VERSION)" \
 	      -o $$out/$$b$$ext ./cmd/$$b; \
 	  done; \
+	  cp -R bundles/locales $$out/locales; \
+	  for d in $(DISTDOCS); do cp $$d $$out/$$d; done; \
 	done
-	@echo "dist: $(words $(PLATFORMS)) platforms × $(words $(DISTBINS)) binaries in $(DIST)/"
+	@echo "dist: $(words $(PLATFORMS)) platforms × $(words $(DISTBINS)) binaries, version $(VERSION), in $(DIST)/"
+
+# dist-tar packs what dist built and writes the checksum file the release notes
+# tell people to verify against. The tarball is FLAT — the binaries sit at its
+# root — because that is what v0.1.0 and v0.1.1 shipped and a layout change
+# between patch releases breaks every instruction anybody wrote down.
+dist-tar: dist
+	@set -e; cd $(DIST); rm -f SHA256SUMS-assets.txt; \
+	for p in $(PLATFORMS); do \
+	  os=$${p%/*}; arch=$${p#*/}; \
+	  tar -czf ghillie-$$os-$$arch.tar.gz -C $$os-$$arch .; \
+	  echo "  packed ghillie-$$os-$$arch.tar.gz"; \
+	done; \
+	shasum -a 256 ghillie-*.tar.gz > SHA256SUMS-assets.txt
+	@echo "dist-tar: $(words $(PLATFORMS)) tarballs + SHA256SUMS-assets.txt in $(DIST)/"
 
 all: check build
 

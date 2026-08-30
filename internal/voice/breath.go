@@ -36,14 +36,10 @@ import (
 
 // Bank defaults, matching the approved run.
 //
-// DefaultBankDir resolves at start: the public home (~/.ghillie/breathbank)
-// wins when it exists; the estate's own vault location is kept as a
-// fallback so an already-configured machine keeps working. Neither existing
-// is fine — the voice pipeline states its absence honestly.
-var DefaultBankDir = firstExistingDir(
-	subHome(".ghillie", "breathbank"),
-	subHome("ObVault", "voice-assets", "breathbank"),
-)
+// DefaultBankDir resolves at start, under the ghillie home: $GHILLIE_HOME when
+// the machine names one, otherwise ~/.ghillie. Its absence is fine — the voice
+// pipeline states it honestly rather than guessing at somebody else's layout.
+var DefaultBankDir = ghillieHomeSub("breathbank")
 
 const (
 
@@ -190,31 +186,17 @@ func (b *BreathBank) OfferedFloor(ctx context.Context, text, speechWav string) (
 	return breathWav, nil
 }
 
-// subHome joins path elements under the user's home; empty on failure.
-func subHome(parts ...string) string {
-	h, err := os.UserHomeDir()
-	if err != nil {
-		return ""
-	}
-	return filepath.Join(append([]string{h}, parts...)...)
-}
-
-// firstExistingDir returns the first candidate that exists as a directory,
-// or the first candidate when none do (so error messages name the
-// preferred place, not an empty string).
-func firstExistingDir(candidates ...string) string {
-	for _, c := range candidates {
-		if c == "" {
-			continue
+// ghillieHomeSub joins path elements under the ghillie home: $GHILLIE_HOME when
+// the machine names one, otherwise ~/.ghillie. It is the same resolution the
+// commands use, kept here so this package needs nothing from them.
+func ghillieHomeSub(parts ...string) string {
+	home := os.Getenv("GHILLIE_HOME")
+	if home == "" {
+		h, err := os.UserHomeDir()
+		if err != nil {
+			return ""
 		}
-		if info, err := os.Stat(c); err == nil && info.IsDir() {
-			return c
-		}
+		home = filepath.Join(h, ".ghillie")
 	}
-	for _, c := range candidates {
-		if c != "" {
-			return c
-		}
-	}
-	return ""
+	return filepath.Join(append([]string{home}, parts...)...)
 }

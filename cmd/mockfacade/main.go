@@ -81,8 +81,13 @@ type settings struct {
 	requireAuth bool
 }
 
+// version is the release this binary was cut from, set at build time by the
+// release path (-ldflags "-X main.version=vX.Y.Z").
+var version = "dev"
+
 func main() {
 	var s settings
+	showVersion := flag.Bool("version", false, "print the version and exit")
 	flag.StringVar(&s.addr, "addr", "127.0.0.1:8787", "address to listen on (the FACADE listens; the terminal never does)")
 	flag.StringVar(&s.seed, "seed", "mockfacade-test-key-do-not-use-anywhere-real", "seed for the test signing key")
 	flag.StringVar(&s.pubkeyOut, "pubkey-out", "", "write the test facade public key (hex) to this file")
@@ -93,6 +98,11 @@ func main() {
 	flag.Int64Var(&s.balance, "balance", 250, "the balance the FACADE reports — this is the number that decides, unlike the claw's courtesy figure")
 	flag.BoolVar(&s.requireAuth, "require-auth", true, "refuse poll/brief/specs without an attested session, as the real facade door does")
 	flag.Parse()
+
+	if *showVersion {
+		fmt.Printf("mockfacade %s\n", version)
+		return
+	}
 
 	if err := run(s); err != nil {
 		fmt.Fprintf(os.Stderr, "mockfacade: %v\n", err)

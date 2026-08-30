@@ -36,10 +36,28 @@ import (
 	"github.com/tonygair/ghillie/internal/post"
 )
 
+// version is the release this binary was cut from, set at build time by the
+// release path (-ldflags "-X main.version=vX.Y.Z").
+var version = "dev"
+
 func main() {
 	if err := run(); err != nil {
 		log.Fatalf("ghillie-post: %v", err)
 	}
+}
+
+// ghillieHome returns the directory this machine keeps ghillie's durable state
+// in: $GHILLIE_HOME when set, otherwise ~/.ghillie. It matches ghillie's own
+// resolution so the three binaries share one home by default and one override.
+func ghillieHome() string {
+	if p := os.Getenv("GHILLIE_HOME"); p != "" {
+		return p
+	}
+	h, err := os.UserHomeDir()
+	if err != nil {
+		return "."
+	}
+	return filepath.Join(h, ".ghillie")
 }
 
 type options struct {
@@ -57,15 +75,9 @@ type options struct {
 
 func run() (err error) {
 	var o options
-	home, _ := os.UserHomeDir()
-	defaultState := filepath.Join(home, ".ghillie", "post")
-	// The estate's own vault location is kept as fallback so an
-	// already-configured machine keeps working; the public default is
-	// ~/.ghillie.
-	if legacy := filepath.Join(home, "ObVault", "ghillie-home", "post"); dirExists(legacy) {
-		defaultState = legacy
-	}
+	defaultState := filepath.Join(ghillieHome(), "post")
 
+	showVersion := flag.Bool("version", false, "print the version and exit")
 	flag.StringVar(&o.credentials, "credentials", filepath.Join(defaultState, "client.json"), "the OWNER'S OAuth client file (Google 'installed' JSON) — route A means this is theirs")
 	flag.StringVar(&o.stateDir, "state", defaultState, "durable state dir (token, watermark, digest, queue, gap ledger) — never /tmp")
 	flag.StringVar(&o.grants, "grants", "", "grants file (default <state>/grants.json); absent file = empty table = refuse everything, which is the no-spam default")
@@ -77,6 +89,11 @@ func run() (err error) {
 	flag.BoolVar(&o.login, "login", false, "run the one-time consent flow and exit")
 	flag.BoolVar(&o.once, "once", false, "poll once and exit")
 	flag.Parse()
+
+	if *showVersion {
+		fmt.Printf("ghillie-post %s\n", version)
+		return nil
+	}
 
 	if err := os.MkdirAll(o.stateDir, 0o700); err != nil {
 		return fmt.Errorf("state dir: %w", err)
@@ -259,10 +276,4 @@ func inQuietWindow(now time.Time, from, to string) bool {
 		return n >= f && n < t
 	}
 	return n >= f || n < t
-}
-
-// dirExists reports whether the path exists as a directory.
-func dirExists(p string) bool {
-	info, err := os.Stat(p)
-	return err == nil && info.IsDir()
 }

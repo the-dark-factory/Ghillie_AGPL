@@ -76,8 +76,9 @@ type TextPlan struct {
 	// front of the harness: piper renders the speech, and textplan.py plans
 	// and splices breath OVER it via its own TP_SRC_WAV door — the full
 	// trimmings on a fine-tuned voice, no harness change. This is how
-	// ghillie speaks SCOTS (the ~/dev/summoner/voices/scottish.onnx
-	// fine-tune) instead of the stock-RP placeholder
+	// ghillie speaks SCOTS (the scottish.onnx fine-tune, named by
+	// -scots-model or found under the ghillie home) instead of the
+	// stock-RP placeholder
 	// (feedback_ghillie_voice_must_be_scottish).
 	//
 	// ⚠ THE DEVIL-VOICE GUARD: the model's SIBLING CONFIG scottish.la.json

@@ -52,25 +52,42 @@ func main() {
 	}
 }
 
-func run() error {
-	home, _ := os.UserHomeDir()
-	defaultState := filepath.Join(home, ".ghillie", "wa")
-	// The estate's own vault location is kept as fallback so an
-	// already-configured machine keeps working; the public default is
-	// ~/.ghillie.
-	if legacy := filepath.Join(home, "ObVault", "ghillie-home", "wa"); dirExists(legacy) {
-		defaultState = legacy
+// version is the release this binary was cut from, set at build time by the
+// release path (-ldflags "-X main.version=vX.Y.Z").
+var version = "dev"
+
+// ghillieHome returns the directory this machine keeps ghillie's durable state
+// in: $GHILLIE_HOME when set, otherwise ~/.ghillie. It matches ghillie's own
+// resolution so the three binaries share one home by default and one override.
+func ghillieHome() string {
+	if p := os.Getenv("GHILLIE_HOME"); p != "" {
+		return p
 	}
+	h, err := os.UserHomeDir()
+	if err != nil {
+		return "."
+	}
+	return filepath.Join(h, ".ghillie")
+}
+
+func run() error {
+	defaultState := filepath.Join(ghillieHome(), "wa")
 
 	var (
-		stateDir  = flag.String("state", defaultState, "durable state dir (session store, grants, digest, queue, gap ledger) — never /tmp")
-		grants    = flag.String("grants", "", "grants file (default <state>/grants.json), keys are phone numbers; absent = refuse everyone")
-		presence  = flag.String("presence", "free", "the owner's presence: free, occupied, away or asleep — an input to presentation, NEVER reported back to WhatsApp")
-		quietFrom = flag.String("quiet-from", "22:00", "quiet hours start (local HH:MM)")
-		quietTo   = flag.String("quiet-to", "07:00", "quiet hours end (local HH:MM)")
-		login     = flag.Bool("login", false, "pair this ghillie as a linked device, then exit")
+		showVersion = flag.Bool("version", false, "print the version and exit")
+		stateDir    = flag.String("state", defaultState, "durable state dir (session store, grants, digest, queue, gap ledger) — never /tmp")
+		grants      = flag.String("grants", "", "grants file (default <state>/grants.json), keys are phone numbers; absent = refuse everyone")
+		presence    = flag.String("presence", "free", "the owner's presence: free, occupied, away or asleep — an input to presentation, NEVER reported back to WhatsApp")
+		quietFrom   = flag.String("quiet-from", "22:00", "quiet hours start (local HH:MM)")
+		quietTo     = flag.String("quiet-to", "07:00", "quiet hours end (local HH:MM)")
+		login       = flag.Bool("login", false, "pair this ghillie as a linked device, then exit")
 	)
 	flag.Parse()
+
+	if *showVersion {
+		fmt.Printf("ghillie-wa %s\n", version)
+		return nil
+	}
 
 	fmt.Println("⚠ route A: linked-device protocol on the owner's PERSONAL account.")
 	fmt.Println("  Not an official API; automation violates WhatsApp's terms; the")
@@ -229,10 +246,4 @@ func inQuietWindow(now time.Time, from, to string) bool {
 		return n >= f && n < t
 	}
 	return n >= f || n < t
-}
-
-// dirExists reports whether the path exists as a directory.
-func dirExists(p string) bool {
-	info, err := os.Stat(p)
-	return err == nil && info.IsDir()
 }

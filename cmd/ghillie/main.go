@@ -74,6 +74,7 @@ import (
 	"github.com/tonygair/ghillie/internal/guard"
 	"github.com/tonygair/ghillie/internal/identity"
 	"github.com/tonygair/ghillie/internal/interview"
+	"github.com/tonygair/ghillie/internal/keys"
 	"github.com/tonygair/ghillie/internal/terminal"
 	"github.com/tonygair/ghillie/internal/voice"
 )
@@ -92,6 +93,7 @@ type options struct {
 	keyFile     string
 	deviceSeed  string
 	deviceKey   string
+	encryptKey  string
 	ownerID     string
 	userID      string
 	appleRef    string
@@ -135,23 +137,44 @@ type options struct {
 	fillAnswer string
 	revokeFill string
 	listFills  bool
+
+	stateSet   bool   // -state was named explicitly; the home notice is then not ours to give
+	homeNotice string // the one line resolveStateDir wants said, if any
 }
+
+// version is the release this binary was cut from. It is set at build time by
+// the release path (-ldflags "-X main.version=vX.Y.Z"); a binary built any other
+// way says so rather than claiming a tag it does not have.
+var version = "dev"
 
 func main() {
 	var o options
+
+	// ★ THE STATE LIVES IN A PLACE, NOT IN A CWD (v0.1.2). Resolved before the
+	// flags are declared so `-h` prints the real paths this run would use, and
+	// so an operator naming -state still wins over all of it.
+	cwd, cwdErr := os.Getwd()
+	if cwdErr != nil {
+		cwd = ""
+	}
+	stateDir, homeNotice := resolveStateDir(ghillieHome(), cwd, pathExists)
+	o.homeNotice = homeNotice
+
+	showVersion := flag.Bool("version", false, "print the version and exit")
 	flag.StringVar(&o.facadeURL, "facade", "", "facade base URL, e.g. https://facade.example (required)")
 	flag.StringVar(&o.clawID, "claw-id", "", "this CLAW's id — the device, not the person (required)")
 	flag.StringVar(&o.keyFile, "facade-key-file", "", "file holding the facade signing public key, hex — an EXPLICIT OVERRIDE; when absent the key pinned at enrolment (trust on first use) is used")
 	flag.StringVar(&o.deviceSeed, "device-seed", "", "derive the device key from a string — a DEMO AFFORDANCE so scripted runs reproduce byte for byte; a real install omits this and gets a generated key kept in -device-key-file")
 	flag.StringVar(&o.deviceKey, "device-key-file", "", "file holding this claw's Ed25519 device key seed, hex — generated once (0600) when absent (default: ghillie-device.key beside the state file)")
+	flag.StringVar(&o.encryptKey, "encrypt-key-file", "", "file holding this claw's X25519 encryption identity (age format) — generated once (0600) when absent (default: ghillie-encrypt.key beside the state file); confidential deliveries are sealed to it, and its public half is published signed by the device key")
 	flag.StringVar(&o.ownerID, "owner-id", "", "the ENROLLING OWNER — sets the ceiling, holds enrolment and revocation (ledger 113)")
 	flag.StringVar(&o.userID, "user-id", "", "the PERSON AT THE KEYBOARD — supplies consent, revocable in absentia (ledger 115)")
 	flag.StringVar(&o.appleRef, "apple-account-ref", "", "the Apple Account that bought the credits — PII: bound at enrolment, never logged, never reported, never quarantined")
 	flag.BoolVar(&o.revoked, "user-revoked", false, "treat the person at this keyboard as REVOKED (ledger 115) — for demonstrating that a revocation bites without anything from them")
 	flag.StringVar(&o.ceilingArg, "ceiling", gate.DefaultCeiling.String(), "the most this machine will ever permit: an Ada command name")
 	flag.StringVar(&o.consentArg, "consent", gate.NoConsent.String(), "human consent present at this machine: None, Session or Fresh_Explicit")
-	flag.StringVar(&o.quarantine, "quarantine", "./quarantine", "directory for delivered artifacts — nothing here is ever executed")
-	flag.StringVar(&o.stateFile, "state", "./ghillie-state.json", "where the last-seen sequence number is kept")
+	flag.StringVar(&o.quarantine, "quarantine", filepath.Join(stateDir, "quarantine"), "directory for delivered artifacts — nothing here is ever executed")
+	flag.StringVar(&o.stateFile, "state", filepath.Join(stateDir, "ghillie-state.json"), "where the last-seen sequence number is kept, and the directory the device key, encryption key and abilities live beside (default: the ghillie home, $GHILLIE_HOME or ~/.ghillie)")
 	flag.DurationVar(&o.pollEvery, "poll", 5*time.Minute, "idle poll interval")
 	flag.IntVar(&o.maxPolls, "max-polls", 0, "stop after this many polls (0 = run until interrupted)")
 	flag.IntVar(&o.idleExit, "idle-exit", 0, "stop after this many consecutive empty polls (0 = never)")
@@ -160,7 +183,7 @@ func main() {
 	flag.Int64Var(&o.courtesy, "courtesy-credit", 0, "the balance to DISPLAY to the client. Advisory only: it authorises nothing, ever")
 	flag.BoolVar(&o.voice, "voice", false, "speak ghillie's lines ALOUD through the settled breath pipeline (textplan + local playback); replies are still typed. Needs -interview. On a Mac with the pipeline present this is ON by default — -text-only is the off switch")
 	flag.BoolVar(&o.textOnly, "text-only", false, "THE VOICE OFF SWITCH: ghillie never speaks — the whole interview in text alone. His lines render as text in every mode anyway; this switch chooses silence, not less information")
-	flag.StringVar(&o.voicePipelineDir, "voice-pipeline-dir", defaultVoicePipeline(), "the respire checkout holding .venv-kokoro and demo/textplan.py (default: first of GHILLIE_VOICE_PIPELINE, ~/.ghillie/respire, ~/dev/respire that exists)")
+	flag.StringVar(&o.voicePipelineDir, "voice-pipeline-dir", defaultVoicePipeline(), "the respire checkout holding .venv-kokoro and demo/textplan.py (default: $GHILLIE_VOICE_PIPELINE, else <ghillie home>/respire)")
 	flag.BoolVar(&o.voiceFallbackText, "voice-fallback-text", false, "if the voice pipeline fails mid-interview, carry on in text instead of stopping — OFF by default so a voiceless run is loud")
 	flag.StringVar(&o.scotsModel, "scots-model", defaultScotsModel(), "Piper fine-tune for ghillie's Scots voice (empty = the pipeline's stock voice, honestly a placeholder)")
 	flag.StringVar(&o.installAbility, "install-ability", "", "install a downloaded ability bundle (.tar.gz or directory) into this home's abilities — AN OWNER ACT, run by hand; verifies the five-part contract and records the ledger, then exits")
@@ -171,7 +194,7 @@ func main() {
 	flag.BoolVar(&o.listAbilities, "abilities", false, "list what is installed here, with provenance from the ledger; anything installed outside the ledger is NAMED as such")
 	flag.StringVar(&o.removeAbility, "remove-ability", "", "uninstall an installed ability by name — the owner's act, recorded in the ledger; this is also how an upgrade is done, visibly")
 	flag.BoolVar(&o.ears, "ears", false, "capture ANSWERS from the microphone, transcribed locally by whisper. The mic opens only after a question's offered-floor breath; typed input remains the fallback and /cut stays typed. Needs -voice")
-	flag.StringVar(&o.earsModel, "ears-model", defaultEarsModel(), "ggml whisper model file for local transcription (durable path, never /tmp; default: first of ~/.ghillie/models/whisper/ggml-base.en.bin, ~/models/whisper/ggml-base.en.bin that exists)")
+	flag.StringVar(&o.earsModel, "ears-model", defaultEarsModel(), "ggml whisper model file for local transcription (durable path, never /tmp; default: $GHILLIE_EARS_MODEL, else <ghillie home>/models/whisper/ggml-base.en.bin)")
 	flag.StringVar(&o.earsWhisperURL, "ears-whisper-url", "http://127.0.0.1:8932", "resident whisper-server URL; when nothing answers there, ghillie starts one itself and stops it on exit; when that too is impossible it falls back to per-utterance whisper-cli, stating the latency cost")
 	flag.StringVar(&o.allowFill, "allow-fill", "", "grant a STANDING RULE: brief items of this class are answered from -fill-answer without asking — AN OWNER ACT, run by hand at this machine, never settable over the wire; recorded, revocable, then exits")
 	flag.StringVar(&o.fillAnswer, "fill-answer", "", "the standing answer -allow-fill licenses (required with it)")
@@ -183,10 +206,18 @@ func main() {
 	flag.BoolVar(&o.earsAdoptExternal, "ears-adopt-external", false, "USE a whisper-server this process did not start. OFF by default: whatever holds that port is handed every word you speak, and it is not known to be whisper. Turn this on only when you know what is listening there. The URL must be loopback either way — your voice does not leave this machine.")
 	flag.Parse()
 	flag.Visit(func(f *flag.Flag) {
-		if f.Name == "voice" {
+		switch f.Name {
+		case "voice":
 			o.voiceSet = true
+		case "state":
+			o.stateSet = true
 		}
 	})
+
+	if *showVersion {
+		fmt.Printf("ghillie %s\n", version)
+		return
+	}
 
 	if err := run(o); err != nil {
 		fmt.Fprintf(os.Stderr, "ghillie: %v\n", err)
@@ -197,6 +228,22 @@ func main() {
 func run(o options) error {
 	log.SetFlags(0)
 	log.SetPrefix("ghillie │ ")
+
+	// ★ SAY WHERE THE IDENTITY IS, WHENEVER IT IS NOT THE OBVIOUS PLACE. An
+	// operator who named -state gets no notice: they know where their state is,
+	// and the resolution did not decide anything for them.
+	if o.homeNotice != "" && !o.stateSet {
+		log.Printf("%s", o.homeNotice)
+	}
+
+	// The state directory is made once, here, rather than by whichever writer
+	// happens to run first — a claw whose home is created as a side effect of
+	// key generation is a claw whose home depends on the order of the flags.
+	if dir := filepath.Dir(o.stateFile); dir != "" && dir != "." {
+		if err := os.MkdirAll(dir, 0o700); err != nil {
+			return fmt.Errorf("create the ghillie home %s: %w", dir, err)
+		}
+	}
 
 	// THE CATALOGUE'S OWNER-SIDE VERBS — each a standalone command that does
 	// its one thing and exits. Reading the catalogue installs nothing;
@@ -346,6 +393,22 @@ func run(o options) error {
 		}
 		deviceKey = key
 	}
+
+	// The ENCRYPTION KEY is deliberately a second key: confidential deliveries
+	// are sealed to it, and it cannot sign — the device key signs its public
+	// half so nobody can be handed an impostor recipient. Generated once,
+	// 0600, beside the device key, same lifecycle.
+	encPath := defaultTo(o.encryptKey, filepath.Join(filepath.Dir(o.stateFile), "ghillie-encrypt.key"))
+	encID, encCreated, err := keys.LoadOrCreate(encPath)
+	if err != nil {
+		return err
+	}
+	if encCreated {
+		log.Printf("encryption key generated and kept at %s (0600) — confidential deliveries seal to this device and open nowhere else", encPath)
+	}
+	encBinding := keys.Bind(encID, deviceKey)
+	_ = encBinding // published at enrolment; the install path opens with encID.
+
 	enrolState := gate.Unenrolled
 	if !o.doEnrol {
 		// Not being asked to enrol means this machine believes it already is —
@@ -1022,11 +1085,10 @@ func voicePipelinePresent(dir string) bool {
 // not a missing asset). Empty when absent: the stock voice then runs and is
 // named a placeholder, never presented as ghillie's.
 func defaultScotsModel() string {
-	h, err := os.UserHomeDir()
-	if err != nil {
-		return ""
+	if p := os.Getenv("GHILLIE_SCOTS_MODEL"); p != "" {
+		return p
 	}
-	p := filepath.Join(h, "dev", "summoner", "voices", "scottish.onnx")
+	p := homeSub("voices", "scottish.onnx")
 	if _, err := os.Stat(p); err != nil {
 		return ""
 	}
@@ -1034,56 +1096,32 @@ func defaultScotsModel() string {
 }
 
 // defaultVoicePipeline resolves the respire checkout: the owner's explicit
-// choice first (GHILLIE_VOICE_PIPELINE), then the public home, then the dev
-// location — first that exists. Empty when none do: the voice then declines
-// by its own honest paths (settleVoice's pipeline-absent branch).
+// choice first (GHILLIE_VOICE_PIPELINE), then the ghillie home. A machine with
+// the checkout somewhere of its own names it in the environment — the binary
+// no longer carries anybody's private layout as a guess.
 func defaultVoicePipeline() string {
 	if p := os.Getenv("GHILLIE_VOICE_PIPELINE"); p != "" {
 		return p
 	}
-	h, err := os.UserHomeDir()
-	if err != nil {
-		return ""
-	}
-	for _, c := range []string{filepath.Join(h, ".ghillie", "respire"), filepath.Join(h, "dev", "respire")} {
-		if info, statErr := os.Stat(c); statErr == nil && info.IsDir() {
-			return c
-		}
-	}
-	return filepath.Join(h, ".ghillie", "respire")
+	return homeSub("respire")
 }
 
-// defaultEarsModel resolves the whisper model the same way: public home
-// first, the older home location kept as fallback.
+// defaultEarsModel resolves the whisper model under the ghillie home.
 func defaultEarsModel() string {
-	h, err := os.UserHomeDir()
-	if err != nil {
-		return ""
+	if p := os.Getenv("GHILLIE_EARS_MODEL"); p != "" {
+		return p
 	}
-	for _, c := range []string{filepath.Join(h, ".ghillie", "models", "whisper", "ggml-base.en.bin"), filepath.Join(h, "models", "whisper", "ggml-base.en.bin")} {
-		if _, statErr := os.Stat(c); statErr == nil {
-			return c
-		}
-	}
-	return filepath.Join(h, ".ghillie", "models", "whisper", "ggml-base.en.bin")
+	return homeSub("models", "whisper", "ggml-base.en.bin")
 }
 
-// defaultCatalogue is the catalogue beside the ghillie home: the public
-// location (~/.ghillie/catalogue) when it exists, the estate's own vault
-// location kept as fallback. A local directory today, an https base
-// tomorrow: internal/bundle reads both through one path, so the change is a
-// flag, not a rewrite.
+// defaultCatalogue is the catalogue under the ghillie home. A local directory
+// today, an https base tomorrow: internal/bundle reads both through one path,
+// so pointing this at https://thereef.ink/catalogue is a flag, not a rewrite.
 func defaultCatalogue() string {
-	h, err := os.UserHomeDir()
-	if err != nil {
-		return ""
+	if p := os.Getenv("GHILLIE_CATALOGUE"); p != "" {
+		return p
 	}
-	for _, c := range []string{filepath.Join(h, ".ghillie", "catalogue"), filepath.Join(h, "ObVault", "ghillie-home", "catalogue")} {
-		if info, statErr := os.Stat(c); statErr == nil && info.IsDir() {
-			return c
-		}
-	}
-	return filepath.Join(h, ".ghillie", "catalogue")
+	return homeSub("catalogue")
 }
 
 // runCatalogue serves the four owner-side verbs. Reading offers nothing;
@@ -1172,11 +1210,33 @@ func runCatalogue(o options) error {
 	if err != nil {
 		return err
 	}
-	dir, err := bundle.Unpack(archive, staging)
-	if err != nil {
-		return err
+	var dir string
+	if want.Delivery == "encrypted" {
+		// A confidential delivery: sealed to THIS claw's encryption key,
+		// decrypted as a stream (the plaintext archive never becomes a
+		// file), and the unpacked source scrubbed after the install
+		// settles — pass or fail.
+		encPath := defaultTo(o.encryptKey, filepath.Join(filepath.Dir(o.stateFile), "ghillie-encrypt.key"))
+		encID, _, kerr := keys.LoadOrCreate(encPath)
+		if kerr != nil {
+			return kerr
+		}
+		dir, err = bundle.UnpackEncrypted(archive, staging, encID)
+		if err != nil {
+			return err
+		}
+		defer func() {
+			if derr := bundle.Dispose(staging); derr != nil {
+				log.Printf("⚠ confidential source disposal left residue under %s: %v — remove it by hand", staging, derr)
+			}
+		}()
+	} else {
+		dir, err = bundle.Unpack(archive, staging)
+		if err != nil {
+			return err
+		}
+		defer os.RemoveAll(staging)
 	}
-	defer os.RemoveAll(staging)
 	if err := os.MkdirAll(abilities, 0o755); err != nil {
 		return err
 	}
