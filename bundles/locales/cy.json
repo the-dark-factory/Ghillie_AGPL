@@ -1,0 +1,18 @@
+{
+  "lang": "cy",
+  "reviewed": false,
+  "_note": "Machine-drafted pack awaiting native review. Chrome strings render in this language now; REFUSALS remain English until reviewed:true is set BY A HUMAN REVIEWER — a refusal is never rephrased, and an unreviewed translation is a rephrasing. Correct any string, then set reviewed:true.",
+  "strings": {
+    "status.noted": "statws wedi'i nodi ar gyfer yr adroddiad nesaf",
+    "catalogue.offered": "mynegai'r catalog wedi'i gynnig (cyf %#016x, fersiwn %d) — arddangos yn unig, dim byd wedi'i osod",
+    "delivery.notice": "hysbysiad danfon dan gwarantin yn %s — heb ei nôl, heb ei osod, heb ei redeg",
+    "delivery.nointerv": "; dim cyfwelydd wedi'i ffurfweddu, felly ni chafodd y corff ei nôl",
+    "chrome.version": "ghillie %s",
+    "chrome.usage": "ghillie — y derfynell ochr-cwsmer. Baneri:",
+    "chrome.lang": "iaith y rhyngwyneb: %s (pecyn o %s; mae gwrthodiadau'n aros yn Saesneg nes bod person wedi adolygu'r pecyn)",
+    "catalogue.header": "%s (cyhoeddwyd %s) — %d gallu",
+    "catalogue.needs": "    angen: %s",
+    "abilities.none": "does dim galluoedd wedi'u gosod yma eto",
+    "abilities.removed": "tynnwyd %s — cofnodwyd yn y llyfr; bydd ei dab yn cau pan fydd arddangosfa'n edrych nesaf"
+  }
+}

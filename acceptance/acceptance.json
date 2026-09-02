@@ -1,0 +1,92 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://ghillie.dev/schema/acceptance.json",
+  "title": "ghillie extension acceptance statement",
+  "description": "The machine-checkable statement of what an extension's non-visual surface is supposed to do — 'here is what done looks like', re-runnable in the cleanroom. This document describes STRUCTURE only; whether the checks hold is established later by a separate proven acceptance core through a thin exec-shim. Design: project_extension_test_gate_and_catalogue.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["purpose", "checks"],
+  "properties": {
+    "purpose": {
+      "type": "object",
+      "description": "What the extension is for.",
+      "additionalProperties": false,
+      "required": ["id", "sentence"],
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Kebab-case identifier for the extension's purpose.",
+          "pattern": "^[a-z0-9]+(-[a-z0-9]+)*$"
+        },
+        "sentence": {
+          "type": "string",
+          "description": "One human sentence stating what the surface is meant to do.",
+          "minLength": 1
+        }
+      }
+    },
+    "checks": {
+      "type": "array",
+      "description": "Non-empty list of re-runnable observations of the surface.",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["name", "given", "run", "expect"],
+        "properties": {
+          "name": {
+            "type": "string",
+            "description": "Kebab-case identifier, unique within this document.",
+            "pattern": "^[a-z0-9]+(-[a-z0-9]+)*$"
+          },
+          "given": {
+            "type": "object",
+            "description": "The input this check hands to the surface.",
+            "additionalProperties": false,
+            "properties": {
+              "file": {
+                "type": "string",
+                "description": "Bundle-relative input path. No absolute paths, no '..' segments.",
+                "minLength": 1
+              },
+              "args": {
+                "type": "array",
+                "description": "Extra arguments appended after the run argv.",
+                "items": { "type": "string" }
+              }
+            }
+          },
+          "run": {
+            "type": "array",
+            "description": "Argv relative to the bundle root. The token {given} expands to given.file, then given.args are appended. No absolute paths, no '..' segments in any token.",
+            "minItems": 1,
+            "items": { "type": "string" }
+          },
+          "expect": {
+            "type": "object",
+            "description": "What the run should produce. At least one field must be set; exit_code defaults to 0 when unset.",
+            "additionalProperties": false,
+            "minProperties": 1,
+            "properties": {
+              "stdout_exact": {
+                "type": "string",
+                "description": "The exact stdout the run should produce; \"\" means expect empty output."
+              },
+              "stdout_matches": {
+                "type": "string",
+                "description": "An RE2 regular expression stdout should match.",
+                "minLength": 1
+              },
+              "exit_code": {
+                "type": "integer",
+                "description": "The exit status the run should end with. Defaults to 0.",
+                "minimum": 0,
+                "maximum": 255
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}

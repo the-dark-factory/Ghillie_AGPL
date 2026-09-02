@@ -1,0 +1,20 @@
+bin/
+.demo/
+quarantine/
+ghillie-state.json
+# `go build ./cmd/ghillie` from the repo root drops the binary here. Anchored
+# with a leading slash so it never matches the cmd/ghillie/ source directory.
+/ghillie
+/ghillie-gui
+/mockfacade
+dist/
+
+# NEVER tracked: identities, state, run leavings
+*.key
+*.pin
+ghillie-state*.json
+*.db
+bin/
+dist/
+.demo/
+quarantine/

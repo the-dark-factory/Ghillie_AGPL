@@ -1,0 +1,35 @@
+{
+  "purpose": {
+    "id": "flag-duplicate-payments",
+    "sentence": "Flags likely duplicate payments in a CSV the person provides — same payee, same amount, within a few days."
+  },
+  "checks": [
+    {
+      "name": "flags-a-double",
+      "given": { "file": "surface/sample.csv" },
+      "run": ["surface/run.sh", "{given}"],
+      "expect": {
+        "stdout_exact": "possible double: Roofer Ltd — 450.00 on 2026-08-01 and again on 2026-08-03\n",
+        "exit_code": 0
+      }
+    },
+    {
+      "name": "no-double-stays-silent",
+      "given": { "file": "surface/no-doubles.csv" },
+      "run": ["surface/run.sh", "{given}"],
+      "expect": {
+        "stdout_exact": "",
+        "exit_code": 0
+      }
+    },
+    {
+      "name": "names-the-repeated-payee",
+      "given": { "file": "surface/sample.csv" },
+      "run": ["surface/run.sh", "{given}"],
+      "expect": {
+        "stdout_matches": "^possible double: Roofer Ltd ",
+        "exit_code": 0
+      }
+    }
+  ]
+}

@@ -1,0 +1,87 @@
+# Gobra verification of the internal/gate proof mirrors.
+#
+# Adopted per Tony's approval of 2026-07-30
+# (~/ObVault/proposals/proposal_gobra_fstar_ci_2026-07-30.md, item 1).
+#
+# What runs: the two green proof packages preserved at commit a34c39f —
+#   verification/gobra/gateFull/  (ledger cores 112 + 120: every May_Command
+#                                  conjunct + Evaluate theorems)
+#   verification/gobra/ordering/  (terminal.go admission path, theorems T1-T6)
+# These are annotated mirrors of internal/gate; the raw sources are not
+# directly Gobra-checkable (see verification/gobra/README.md, "Layout").
+# Trigger on changes to EITHER side so the mirrors cannot silently rot.
+#
+# Invocation reproduces verification/gobra/README.md exactly. Do not drop the
+# `--entrypoint java` override: the image's own entrypoint uses a relative
+# `-jar gobra.jar` and breaks whenever -w is set.
+
+name: gobra
+
+on:
+  push:
+    paths:
+      - "internal/gate/**"
+      - "verification/gobra/**"
+      - ".github/workflows/gobra.yml"
+  pull_request:
+    paths:
+      - "internal/gate/**"
+      - "verification/gobra/**"
+      - ".github/workflows/gobra.yml"
+
+jobs:
+  gobra:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    defaults:
+      run:
+        working-directory: verification/gobra
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Pull Gobra image
+        run: podman pull --platform linux/amd64 ghcr.io/viperproject/gobra:latest
+
+      - name: Verify proof mirrors (gateFull, ordering)
+        run: |
+          set -u
+          fail=0
+          for pkg in gateFull/gate.go ordering/ordering.go; do
+            echo "=== Gobra: ${pkg} ==="
+            out=$(podman run --rm --platform linux/amd64 \
+                    -v "$PWD":/work:z -w /work \
+                    --entrypoint java ghcr.io/viperproject/gobra:latest \
+                    -Xss128m -jar /gobra/gobra.jar -i "${pkg}" 2>&1) || true
+            printf '%s\n' "${out}"
+            # Deterministic gate: require the literal success line, so a
+            # crashed container or a truncated run also fails.
+            if ! printf '%s\n' "${out}" | grep -q 'Gobra found 0 errors'; then
+              fail=1
+            fi
+          done
+          if [ "${fail}" -ne 0 ]; then
+            echo "::error title=Gobra verification failed::A red X here is NOT automatically a soundness break — check for the reserved-keyword trap ('seq'). Details in the step log."
+            cat <<'EOF'
+          ----------------------------------------------------------------------
+          Gobra verification FAILED. Before treating this as a broken proof:
+
+          Gobra reserves `seq` as a specification keyword (evidence:
+          verification/gobra/kw/). An ordinary Go refactor — e.g. naming a
+          parameter, field, or variable `seq` — makes Gobra's front-end reject
+          the file for reasons that have NOTHING to do with correctness.
+
+            * parse/type error pointing at an identifier
+                -> keyword collision or mirror drift: rename the identifier,
+                   or update the mirror. NOT a proof break.
+            * "Gobra found N errors" (N > 0) naming a postcondition/assertion
+                -> a real proof failure. Stop and investigate.
+
+          The proof sources are the annotated mirrors gateFull/ and ordering/,
+          not internal/gate itself — if internal/gate changed, the mirrors
+          likely need the same change re-proved. Recipe + known limits:
+          verification/gobra/README.md; green baseline of 2026-07-30:
+          verification/gobra/EVIDENCE.txt.
+          ----------------------------------------------------------------------
+          EOF
+            exit 1
+          fi

@@ -1,0 +1,19 @@
+ghillie — the customer-side terminal and interviewer
+Copyright (C) 2026 The Dark Factory Ltd
+
+Licensed under the GNU Affero General Public License v3.0 (see LICENSE).
+
+This distribution includes third-party components under their own licences:
+
+  go.mau.fi/whatsmeow            — Mozilla Public License 2.0
+      (WhatsApp linked-device protocol; confined to cmd/ghillie-wa)
+  modernc.org/sqlite             — BSD-3-Clause
+      (pure-Go SQLite; chosen so CGO-off release builds stay honest)
+  github.com/coder/websocket     — ISC
+  github.com/mdp/qrterminal/v3   — MIT
+  filippo.io/edwards25519        — BSD-3-Clause
+
+The proven decision cores this terminal consults are separate artifacts,
+delivered as source with their proofs; each carries its own provenance and
+its proof is re-derivable by the recipient (see any catalogue bundle's
+core/REPROVE.md).

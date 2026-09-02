@@ -1,0 +1,7 @@
+#!/bin/zsh
+# Gobra driver: containerised verifier over $PWD mounted at /work.
+exec podman run --rm --platform linux/amd64 \
+  -v "$(pwd)":/work:z -w /work \
+  --entrypoint java \
+  ghcr.io/viperproject/gobra:${GOBRA_TAG:-latest} \
+  -Xss128m -jar /gobra/gobra.jar "$@"
