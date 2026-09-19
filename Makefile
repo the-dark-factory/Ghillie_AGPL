@@ -368,7 +368,7 @@ publish: publish-check
 	else \
 	  git -C "$$work/public" tag "$(VERSION)"; \
 	fi; \
-	git -C "$$work/public" push --quiet origin HEAD:main "$(VERSION)"; \
+	git -C "$$work/public" push --quiet origin HEAD:master "$(VERSION)"; \
 	echo "publish: creating the release on $(PUBLIC_REPO)"; \
 	gh release create "$(VERSION)" --repo $(PUBLIC_REPO) --verify-tag \
 	  --title "$(VERSION) — $(TITLE)" \
