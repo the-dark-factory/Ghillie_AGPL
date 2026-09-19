@@ -47,4 +47,39 @@ for b in */; do
   echo "packed $b ($BYTES bytes, $DIGEST)"
 done
 printf '\n  ]\n}\n' >> "$DEST/index.json"
+
+# PRUNE WHAT WAS OURS AND IS NO LONGER — AND NOTHING ELSE.
+#
+# This script only ever ADDED. It packs every bundle in bundles/ and rewrites
+# index.json, but a .tar.gz already in $DEST for a bundle since removed was
+# never touched — so it stayed staged, stayed on the host, and stayed fetchable
+# by direct URL long after it left the index.
+#
+# Not hypothetical: on 2026-09-02 commit 861c5a8 removed bundles/the-old-words
+# after df-opsec flagged its provenance for naming never-public codenames. Nine
+# days later the identical archive was still served at 200, byte-for-byte the
+# flagged one, because removing a bundle from the tree is not a recall.
+#
+# ★ IT MUST NOT PRUNE WHAT WAS NEVER OURS. Three policy abilities —
+# brief-fill-policy, mouth-policy, guard-nudge-policy — are forged and packed
+# ELSEWHERE and have never been in this repo's history. Their archives in $DEST
+# may be the only copies on this machine. A prune that deletes every archive
+# without a bundles/ directory destroys them. Git history is the discriminator:
+# prune only what this tree once held and no longer does.
+for f in "$DEST"/*.tar.gz; do
+  [ -e "$f" ] || continue
+  n=$(basename "$f" .tar.gz)
+  [ -d "$n" ] && continue
+  if git -C .. log --oneline --all -- "bundles/$n" 2>/dev/null | head -1 | grep -q .; then
+    echo "PRUNED   $n.tar.gz — was in this tree, was removed; it is no longer ours to serve"
+    rm -f "$f"
+  else
+    echo "kept     $n.tar.gz — never in this repo's history; built elsewhere, not ours to delete"
+  fi
+done
+
 echo "wrote $DEST/index.json"
+echo
+echo "NOTE: this updates the STAGING directory only ($DEST)."
+echo "      Whatever uploads it must also DELETE remotely what was pruned here;"
+echo "      an upload that only copies leaves the withdrawn archive live."

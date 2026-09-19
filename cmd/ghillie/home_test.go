@@ -28,12 +28,34 @@ func TestResolveStateDir(t *testing.T) {
 	const cwd = "/work/project"
 
 	tests := []struct {
-		name       string
-		present    []string
-		cwdIsHome  bool // the run happens to be from the home itself
-		wantDir    string
-		wantNotice string // substring, "" = the notice must be empty
+		name         string
+		present      []string
+		cwdIsHome    bool // the run happens to be from the home itself
+		homeExplicit bool // $GHILLIE_HOME was set: the operator NAMED this home
+		wantDir      string
+		wantNotice   string // substring, "" = the notice must be empty
 	}{
+		{
+			name:         "cwd legacy but the home was NAMED — the named home wins, out loud",
+			present:      []string{filepath.Join(cwd, "abilities")},
+			homeExplicit: true,
+			wantDir:      home,
+			wantNotice:   "is IGNORED",
+		},
+		{
+			name:         "a bare quarantine dir must not capture an explicitly named home",
+			present:      []string{filepath.Join(cwd, "quarantine")},
+			homeExplicit: true,
+			wantDir:      home,
+			wantNotice:   "was named explicitly",
+		},
+		{
+			name:         "named home with its OWN state — settled, and still silent",
+			present:      []string{filepath.Join(home, "ghillie-device.key")},
+			homeExplicit: true,
+			wantDir:      home,
+			wantNotice:   "",
+		},
 		{
 			name:       "neither — a first run picks the home and says nothing",
 			present:    nil,
@@ -106,7 +128,7 @@ func TestResolveStateDir(t *testing.T) {
 			if tt.cwdIsHome {
 				here = home
 			}
-			gotDir, gotNotice := resolveStateDir(home, here, setOf(tt.present...))
+			gotDir, gotNotice := resolveStateDir(home, here, tt.homeExplicit, setOf(tt.present...))
 			if gotDir != tt.wantDir {
 				t.Errorf("dir = %q, want %q", gotDir, tt.wantDir)
 			}
@@ -131,7 +153,7 @@ func TestResolveStateDirNeverMintsBesideLegacy(t *testing.T) {
 
 	for _, marker := range stateMarkers {
 		t.Run(marker, func(t *testing.T) {
-			dir, notice := resolveStateDir(home, cwd, setOf(filepath.Join(cwd, marker)))
+			dir, notice := resolveStateDir(home, cwd, false, setOf(filepath.Join(cwd, marker)))
 			if dir != cwd {
 				t.Fatalf("marker %q in the cwd resolved to %q — a second identity would be minted", marker, dir)
 			}

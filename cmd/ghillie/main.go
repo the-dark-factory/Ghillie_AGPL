@@ -169,7 +169,7 @@ func main() {
 	if cwdErr != nil {
 		cwd = ""
 	}
-	stateDir, homeNotice := resolveStateDir(ghillieHome(), cwd, pathExists)
+	stateDir, homeNotice := resolveStateDir(ghillieHome(), cwd, homeIsExplicit(), pathExists)
 	o.homeNotice = homeNotice
 
 	showVersion := flag.Bool("version", false, "print the version and exit")

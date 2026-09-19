@@ -94,8 +94,18 @@ this estate permitted to construct the tuple, and its fields are unexported so
 that no other caller CAN assert a fact it did not establish.
 
 Source, proofs, the complete table and a fitting guide live in the KingKlaw
-library, MIT-licensed and deliberately separate from this AGPL terminal so
-that anyone can take the gate without taking anything else.
+library, AGPL-3.0-or-later — the same licence as this terminal — and kept in
+its own repository so that anyone can take the gate without taking anything
+else. The separation is for reuse, not for licence compatibility.
+
+> ⚠ Until 2026-09-09 this paragraph said KingKlaw was "MIT-licensed and
+> deliberately separate from this AGPL terminal". Both halves were wrong.
+> KingKlaw is AGPL-3.0-or-later — its `LICENSE`, its `alire.toml`
+> `licenses =` field, and the SPDX header in every source file agree — and
+> there was never a licence reason to keep AGPL source out of an AGPL tree.
+> The correction is recorded here rather than made silently, because an
+> adopter may have relied on the wrong claim when deciding what they could
+> lawfully do with a core.
 
 ## The adoption invitations, explicitly
 

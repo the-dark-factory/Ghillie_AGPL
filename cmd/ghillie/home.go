@@ -53,6 +53,12 @@ func ghillieHome() string {
 	return filepath.Join(h, ".ghillie")
 }
 
+// homeIsExplicit reports whether the operator NAMED the home, rather than
+// getting the ~/.ghillie default. It is the difference between "this machine
+// has no configured home" and "this machine's home is over there", and the
+// resolution below turns on it.
+func homeIsExplicit() bool { return os.Getenv(homeEnv) != "" }
+
 // homeSub returns a path under the ghillie home.
 func homeSub(parts ...string) string {
 	return filepath.Join(append([]string{ghillieHome()}, parts...)...)
@@ -82,6 +88,15 @@ func hasState(dir string, exists func(string) bool) bool {
 //
 // The whole policy, in the order it applies:
 //
+//  0. AN EXPLICITLY NAMED HOME WINS OVER A CWD, always. $GHILLIE_HOME being
+//     set is an operator naming a path, exactly as -state is, and the module's
+//     own rule is that an operator naming a path is an operator naming a path.
+//     This branch exists because TWO of the stateMarkers are generic directory
+//     names — `abilities` and `quarantine` — so an unrelated directory that
+//     merely contains one of them was silently adopting the claw's identity in
+//     preference to the home the operator had just named. Reproduced with a
+//     directory holding nothing but an empty `abilities/`; on this machine both
+//     ~/ObVault and ~/dev/ghillie trigger it.
 //  1. STATE IN THE HOME WINS, always. It is the place the product means, and a
 //     claw that has one has an identity there already.
 //  2. NO HOME STATE BUT LEGACY STATE IN THE CWD: the legacy state is used where
@@ -93,11 +108,13 @@ func hasState(dir string, exists func(string) bool) bool {
 //  4. NEITHER: the home, quietly. A first run has nothing to warn about.
 //
 // exists is injected so the table can drive every branch without a filesystem.
-func resolveStateDir(home, cwd string, exists func(string) bool) (dir string, notice string) {
+func resolveStateDir(home, cwd string, homeExplicit bool, exists func(string) bool) (dir string, notice string) {
 	homeHas := hasState(home, exists)
 	cwdHas := cwd != "" && cwd != home && hasState(cwd, exists)
 
 	switch {
+	case cwdHas && !homeHas && homeExplicit:
+		return home, "state lies beside you in " + cwd + " and is IGNORED — " + home + " was named explicitly, and a named home wins (name the copy beside you with -state to use it instead)"
 	case homeHas && cwdHas:
 		return home, "state found in BOTH " + home + " and " + cwd + " — using the home; the copy beside you is left untouched and ignored (name it with -state to use it instead)"
 	case homeHas:
